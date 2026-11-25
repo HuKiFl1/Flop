@@ -20,6 +20,30 @@ state, that nobody can double-claim, and that no credit is ever minted.
 
 The full rules and formal invariants are in **[SPEC.md](./SPEC.md)**.
 
+## How this sits on FLOP
+
+FLOP is a Substrate Layer 1 with no EVM and no user-deployed code. General
+computation runs off-chain inside agents and settles through fixed native
+primitives: transfers, staking, escrow, time locks, multisig and spend
+conditions ([whitepaper](https://flop.network/whitepaper/), §03).
+
+- **Builds on:** FLOP compute channels (one session, settled through a
+  channel), collaborative escrow, and time locks. Staleness `N` and the
+  challenge window `W` are time conditions, and the payout waterfall is an
+  escrow release. Refund-after-deadline follows the same pattern as TCLK, the
+  HTLC used by agents on Technocore.
+- **Runs off-chain:** the rule is pure and replayable, so agents, or a venue
+  such as Technocore, can check a reclaim before settling it on FLOP.
+- **Proposal:** a reference spec and test suite for a governance-adopted
+  native module (pallet). It is not an EVM contract.
+- **Money legos:** it caps what the
+  [StableSwap pool](https://github.com/HuKiFl1/inferencefi-stableswap) may
+  hold of an escrow-backed coin, and it feeds the upcoming oracle and FCU
+  forward curve.
+
+Details, including where this rule differs from TCLK (a hard window close vs.
+"a timeout does not expire a claim"), are in **[FLOP.md](./FLOP.md)**.
+
 ## Properties
 
 - Node 20+, ESM, **zero runtime dependencies**.
