@@ -6,6 +6,11 @@ whitepaper says the Yellow Paper is the definitive specification and that it
 is not yet final. Items marked **[YP]** depend on it. Items marked
 **Proposal** are our design suggestions, not FLOP facts.
 
+IDs such as IF-F12 or IF-D8 refer to the Inference Finance product spec (an
+EVM AMM for inference credits measured in OMER, rehearsed on HyperEVM testnet
+with TEST mocks). Its contracts are not public, so this repo describes them
+only at the level of that spec.
+
 ## 1. What FLOP provides (whitepaper facts)
 
 - FLOP is its own Layer 1 built on Substrate. It has **no EVM and is
@@ -48,18 +53,26 @@ is not yet final. Items marked **[YP]** depend on it. Items marked
 | `ReclaimInitiated` + `challengeWindowBlocks` `W` | A time lock: the refund-style path that opens once the finalized prefix passes `s + W`. |
 | `Reclaimed` payout waterfall | An escrow release to provider, lender and payer under a spend condition. |
 | Block heights | Finalized FLOP heights. AlephBFT finality means no reorg handling is needed; the library already assumes callers feed final heights. |
+| `StateFinalized` as evidence of spend | **Proposal:** a candidate Flop spend receipt. A commitment to finalized channel states (channel, nonce, cumulative owed) could serve as the receipt root behind an EVM hook's `jobId` (open decision IF-D8) and as the settler-attested spend that earns rewards (IF-F11), each receipt counted once. |
+| `ReclaimInitiated` → `Reclaimed` | **Proposal:** the timing and payout order for the "reclaimed if unserved" path of a receipt-backed credit minter (IF-F12): no progress for `N` blocks, a `W`-block window, then provider owed first, lender principal next, payer remainder last, never minting. |
 
 ## 3. Where it runs
 
-The logic is pure and replayable (`replay(params, events)`), with no clocks or
-I/O. It runs **off-chain**, inside agents or in a venue such as Technocore,
-where parties can check a reclaim before anyone submits a transaction. Funds
-move only through FLOP's native escrow and time-lock primitives.
+**Role:** an independent off-chain reference implementation and test-vector
+source for Inference Finance, whose AMM is Solidity on HyperEVM testnet (chain
+998), unaudited and TEST mocks only. FLOP has no EVM and no user-deployed code,
+so DeFi contracts run on an EVM chain and integrate with FLOP through inference
+credits, spend receipts, escrow and channels. A native FLOP module remains a
+possible long-term path, not the current plan.
 
-**Proposal:** this repository is a reference specification plus test suite
-for a governance-adopted native module (a Substrate pallet) that would enforce
-the same rule at the escrow layer. It is not an EVM contract and not
-user-deployed code; FLOP has neither.
+The logic is pure and replayable (`replay(params, events)`), with no clocks or
+I/O, so agents, a venue such as Technocore, or a contract's test suite can
+check a reclaim against it. On FLOP, funds move only through native escrow and
+time-lock primitives.
+
+**Honest gap:** there is still no on-chain FLOP or Pearl inference-credit
+token, so the EVM side can only model these receipts and reclaims with TEST
+mocks today.
 
 ## 4. Money legos
 
@@ -70,12 +83,15 @@ user-deployed code; FLOP has neither.
   this package's `toLender` (exported there as `recoverablePrincipal`), and
   its backing events mirror `StateFinalized` / `ReclaimInitiated` /
   `Reclaimed`.
-- **Oracle and FCU forward curve (in progress, Proposal):** a price oracle
-  over pool prices plus a 1–30 day forward curve read from settled FLOP
-  Compute Unit reservations, the "transaction-anchored term tape" the
-  whitepaper describes (§12). FCUs are ratified protocol design with
-  implementation planned after the core protocol. Reclaimed or stale channels
-  are a credit signal such a curve or a future credit line could consume.
+- **Receipt-backed credit (Proposal):** finalized channel states are a
+  candidate spend receipt for Inference Finance's rewards and hook attribution
+  (IF-F11, IF-D8), and this package's reclaim rule maps onto its minter's
+  "reclaimed if unserved" redemption (IF-F12).
+- **FCU term tape (later):** settled FLOP Compute Unit reservations form the
+  "transaction-anchored term tape" the whitepaper describes (§12). FCUs are
+  ratified protocol design with implementation planned after the core
+  protocol. Reclaimed or stale channels are a credit signal such a curve or a
+  future credit line could consume.
 
 ## 5. Divergences from TCLK and open questions
 
@@ -91,11 +107,11 @@ The code is unchanged; these are questions for the protocol authors.
    the start. Here the deadline only exists after explicit initiation
    (`s + W`), following `N` blocks without progress. Can FLOP's time
    conditions express "N blocks since the last state, then W blocks after a
-   trigger", or does this need native module support?
+   trigger"?
 3. **Partial reclaim policy.** TCLK's refund returns everything to the
    creator. This package splits escrow three ways (provider owed, lender
    principal, payer remainder). Is a three-way split expressible as a typed
-   escrow release policy, or does it need the module?
+   escrow release policy, or must it be enforced off-chain or on the EVM side?
 4. **Per-block settlement [YP].** If the compute channel pays the miner every
    block, "owed" is mostly already paid and the reclaim amount is the
    unspent remainder. How cumulative channel states and per-block payouts

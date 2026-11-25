@@ -22,24 +22,30 @@ The full rules and formal invariants are in **[SPEC.md](./SPEC.md)**.
 
 ## How this sits on FLOP
 
-FLOP is a Substrate Layer 1 with no EVM and no user-deployed code. General
-computation runs off-chain inside agents and settles through fixed native
-primitives: transfers, staking, escrow, time locks, multisig and spend
-conditions ([whitepaper](https://flop.network/whitepaper/), §03).
+**Role:** an independent off-chain reference implementation and test-vector
+source for Inference Finance, whose AMM is Solidity on HyperEVM testnet (chain
+998), unaudited and TEST mocks only. FLOP has no EVM and no user-deployed code
+([whitepaper](https://flop.network/whitepaper/), §03), so DeFi contracts run on
+an EVM chain and integrate with FLOP through inference credits, spend receipts,
+escrow and channels. A native FLOP module remains a possible long-term path,
+not the current plan.
 
-- **Builds on:** FLOP compute channels (one session, settled through a
+- **FLOP pieces it models:** compute channels (one session, settled through a
   channel), collaborative escrow, and time locks. Staleness `N` and the
   challenge window `W` are time conditions, and the payout waterfall is an
   escrow release. Refund-after-deadline follows the same pattern as TCLK, the
   HTLC used by agents on Technocore.
-- **Runs off-chain:** the rule is pure and replayable, so agents, or a venue
-  such as Technocore, can check a reclaim before settling it on FLOP.
-- **Proposal:** a reference spec and test suite for a governance-adopted
-  native module (pallet). It is not an EVM contract.
+- **Spend receipts:** a finalized channel state (nonce, cumulative owed) is a
+  candidate Flop spend receipt, for example as the receipt root behind an EVM
+  hook's `jobId` (Inference Finance open decision IF-D8).
+- **Unserved reclaim:** the reclaim rule maps onto the "reclaimed if unserved"
+  redemption of a receipt-backed credit minter (IF-F12): when it may happen,
+  how much, and who is paid first, with nothing ever minted.
 - **Money legos:** it caps what the
   [StableSwap pool](https://github.com/HuKiFl1/inferencefi-stableswap) may
-  hold of an escrow-backed coin, and it feeds the upcoming oracle and FCU
-  forward curve.
+  hold of an escrow-backed coin.
+- **Honest gap:** there is no on-chain FLOP or Pearl inference-credit token
+  yet, so the EVM side can only model these flows with TEST mocks.
 
 Details, including where this rule differs from TCLK (a hard window close vs.
 "a timeout does not expire a claim"), are in **[FLOP.md](./FLOP.md)**.
